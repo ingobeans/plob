@@ -1,8 +1,11 @@
 #include "pd_api.h"
+#include "pd_api/pd_api_gfx.h"
+#include <stdio.h>
 
 static int update(void *userdata);
 const char *fontpath = "/System/Fonts/Asheville-Sans-14-Bold.pft";
 LCDFont *font = NULL;
+LCDBitmap *heidi = NULL;
 
 #ifdef _WINDLL
 __declspec(dllexport)
@@ -17,8 +20,11 @@ int eventHandler(PlaydateAPI *pd, PDSystemEvent event, uint32_t arg) {
       pd->system->error("%s:%i Couldn't load font %s: %s", __FILE__, __LINE__,
                         fontpath, err);
 
-    // Note: If you set an update callback in the kEventInit handler, the system
-    // assumes the game is pure C and doesn't run any Lua code in the game
+    const char *err2;
+    heidi = pd->graphics->loadBitmap("sprites/heidi.png", &err2);
+    if (heidi == NULL)
+      pd->system->error("Couldn't load heidi!! %s", err2);
+
     pd->system->setUpdateCallback(update, pd);
   }
 
@@ -36,9 +42,12 @@ int dy = 2;
 static int update(void *userdata) {
   PlaydateAPI *pd = userdata;
 
-  pd->graphics->clear(kColorWhite);
+  pd->graphics->clear(kColorBlack);
   pd->graphics->setFont(font);
-  char *text = "hi there !! <3";
+  char *text = "heidi game heidi game";
+  pd->graphics->setDrawMode(kDrawModeCopy);
+  pd->graphics->drawBitmap(heidi, 64, 64, false);
+  pd->graphics->setDrawMode(kDrawModeFillWhite);
   pd->graphics->drawText(text, strlen(text), kASCIIEncoding, x, y);
 
   float change = pd->system->getCrankChange();
@@ -62,8 +71,6 @@ static int update(void *userdata) {
 
     dy = -dy;
   }
-
-  pd->system->drawFPS(0, 0);
 
   return 1;
 }
