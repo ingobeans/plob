@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-
 #include "pd_api.h"
 
 static int update(void *userdata);
@@ -31,8 +28,8 @@ int eventHandler(PlaydateAPI *pd, PDSystemEvent event, uint32_t arg) {
 #define TEXT_WIDTH 86
 #define TEXT_HEIGHT 16
 
-int x = (400 - TEXT_WIDTH) / 2;
-int y = (240 - TEXT_HEIGHT) / 2;
+float x = (400 - TEXT_WIDTH) / 2.0f;
+float y = (240 - TEXT_HEIGHT) / 2.0f;
 int dx = 1;
 int dy = 2;
 
@@ -41,16 +38,30 @@ static int update(void *userdata) {
 
   pd->graphics->clear(kColorWhite);
   pd->graphics->setFont(font);
-  pd->graphics->drawText("hiiii!", strlen("hiiii!"), kASCIIEncoding, x, y);
+  char *text = "hi there !! <3";
+  pd->graphics->drawText(text, strlen(text), kASCIIEncoding, x, y);
 
-  x += dx;
-  y += dy;
+  float change = pd->system->getCrankChange();
 
-  if (x < 0 || x > LCD_COLUMNS - TEXT_WIDTH)
+  x += dx * (1.0f + change / 2.0f);
+  y += dy * (1.0f + change / 2.0f);
+
+  if (x < 0 || x > LCD_COLUMNS - TEXT_WIDTH) {
+    if (x < 0)
+      x = 0;
+    if (x > LCD_COLUMNS - TEXT_WIDTH)
+      x = LCD_COLUMNS - TEXT_WIDTH;
     dx = -dx;
+  }
 
-  if (y < 0 || y > LCD_ROWS - TEXT_HEIGHT)
+  if (y < 0 || y > LCD_ROWS - TEXT_HEIGHT) {
+    if (y < 0)
+      y = 0;
+    if (y > LCD_ROWS - TEXT_HEIGHT)
+      y = LCD_ROWS - TEXT_HEIGHT;
+
     dy = -dy;
+  }
 
   pd->system->drawFPS(0, 0);
 
