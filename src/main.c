@@ -1,5 +1,6 @@
 #include "pd_api.h"
 #include "pd_api/pd_api_gfx.h"
+#include "pd_api/pd_api_sys.h"
 #include <math.h>
 #include <stdio.h>
 
@@ -11,8 +12,6 @@ LCDBitmap *heidi = NULL;
 #ifdef _WINDLL
 __declspec(dllexport)
 #endif
-
-const float GRAVITY = 9.8;
 
 typedef struct {
   float x;
@@ -159,10 +158,13 @@ int eventHandler(PlaydateAPI *pd, PDSystemEvent event, uint32_t arg) {
     square = createSquareSoftbody(width, origin);
 
     pd->system->setUpdateCallback(update, pd);
+    pd->system->setPeripheralsEnabled(kAccelerometer);
   }
 
   return 0;
 }
+
+Vec2 GRAVITY = {0.0, 9.8};
 
 static int update(void *userdata) {
   PlaydateAPI *pd = userdata;
@@ -172,13 +174,34 @@ static int update(void *userdata) {
   float delta_time = 0.1;
   // delta_time = pd->system->getCrankChange() / 100.0f;
 
+  float accX = 0;
+  float accY = 0;
+  float accZ = 0;
+  pd->system->getAccelerometer(&accX, &accY, &accZ);
+  pd->system->logToConsole("Acceleromter: %f, %f, %f", accX, accY, accZ);
+
+  GRAVITY.x = accX * 9.8;
+  GRAVITY.y = accY * 9.8;
+
   // update loop
   for (int i = 0; i < square.nodeAmt; i++) {
     SoftbodyNode *node = &square.nodes[i];
-    node->velocity.y += GRAVITY * delta_time;
+    node->velocity = add(node->velocity, mulScalar(GRAVITY, delta_time));
     if (node->pos.y >= 240) {
       float delta = node->pos.y - 240;
       node->velocity.y -= delta * 100.0f * delta_time;
+    }
+    if (node->pos.x >= 400) {
+      float delta = node->pos.x - 400;
+      node->velocity.x -= delta * 100.0f * delta_time;
+    }
+    if (node->pos.y < 0) {
+      float delta = node->pos.y;
+      node->velocity.y -= delta * 100.0f * delta_time;
+    }
+    if (node->pos.x < 0) {
+      float delta = node->pos.x;
+      node->velocity.x -= delta * 100.0f * delta_time;
     }
 
     for (int j = 0; j < node->springAmt; j++) {
