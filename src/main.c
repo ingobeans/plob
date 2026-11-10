@@ -22,7 +22,7 @@ typedef struct {
 } Vec2;
 
 typedef struct {
-  Vec2 target;
+  Vec2 *target;
   float targetDist;
 } SoftbodySpring;
 
@@ -61,11 +61,11 @@ Vec2 mulScalar(Vec2 a, float b) {
 
 Softbody createSoftbody(SoftbodyNode nodes[4], int nodeAmt) {
   for (int i = 0; i < nodeAmt; i++) {
-    SoftbodyNode node = nodes[i];
-    for (int j = 0; j < 4; j++) {
-      SoftbodySpring spring = node.springs[j];
-      float length = distance(node.pos, spring.target);
-      spring.targetDist = length;
+    SoftbodyNode *node = &nodes[i];
+    for (int j = 0; j < node->springAmt; j++) {
+      SoftbodySpring *spring = &node->springs[j];
+      float length = distance(node->pos, *spring->target);
+      spring->targetDist = length;
     }
   }
   Softbody body = {nodes, nodeAmt};
@@ -84,7 +84,7 @@ Softbody createSquareSoftbody(float length, Vec2 origin) {
     if (next >= 4) {
       next = 0;
     }
-    SoftbodySpring spring = {points[next], 0};
+    SoftbodySpring spring = {&nodes[next].pos, 0};
     SoftbodySpring *springs = malloc(sizeof(SoftbodySpring) * 1);
     springs[0] = spring;
     SoftbodyNode node = {points[i], {0}, springs, 1};
@@ -150,8 +150,8 @@ static int update(void *userdata) {
 
     for (int j = 0; j < node->springAmt; j++) {
       SoftbodySpring *target = &node->springs[j];
-      pd->graphics->drawLine(node->pos.x, node->pos.y, target->target.x,
-                             target->target.y, 2, kColorWhite);
+      pd->graphics->drawLine(node->pos.x, node->pos.y, target->target->x,
+                             target->target->y, 2, kColorWhite);
     }
   }
 
