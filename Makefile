@@ -17,7 +17,7 @@ upload:
 	make device
 	sudo echo Uploading game to ${PLAYDATE_PORT}
 	DEVICES=$$(ls /dev/ | grep -E "sd.{1,}1") && \
-	pdutil /dev/ttyACM0 datadisk && \
+	pdutil ${PLAYDATE_PORT} datadisk && \
 	while true; do \
 		NEW_DEVICES_LIST=$$(ls /dev/ | grep -E "sd.{1,}1") && \
 		NEW_DEVICES=$${NEW_DEVICES_LIST#$$DEVICES}; \
