@@ -14,6 +14,8 @@ LCDBitmap *heidi = NULL;
 __declspec(dllexport)
 #endif
 
+const float GRAVITY = 9.8;
+
 typedef struct {
   float x;
   float y;
@@ -36,10 +38,25 @@ typedef struct {
   int nodeAmt;
 } Softbody;
 
-float distance(Vec2 *a, Vec2 *b) {
-  int x = a->x - b->x;
-  int y = a->y - b->y;
+float distance(Vec2 a, Vec2 b) {
+  int x = a.x - b.x;
+  int y = a.y - b.y;
   return sqrt(x * x + y * y);
+}
+Vec2 add(Vec2 a, Vec2 b) {
+  a.x += b.x;
+  a.y += b.y;
+  return a;
+}
+Vec2 mul(Vec2 a, Vec2 b) {
+  a.x *= b.x;
+  a.y *= b.y;
+  return a;
+}
+Vec2 mulScalar(Vec2 a, float b) {
+  a.x *= b;
+  a.y *= b;
+  return a;
 }
 
 Softbody createSoftbody(SoftbodyNode nodes[4], int nodeAmt) {
@@ -47,7 +64,7 @@ Softbody createSoftbody(SoftbodyNode nodes[4], int nodeAmt) {
     SoftbodyNode node = nodes[i];
     for (int j = 0; j < 4; j++) {
       SoftbodySpring spring = node.springs[j];
-      float length = distance(&node.pos, &spring.target);
+      float length = distance(node.pos, spring.target);
       spring.targetDist = length;
     }
   }
@@ -108,18 +125,33 @@ static int update(void *userdata) {
   pd->graphics->clear(kColorBlack);
 
   pd->graphics->setDrawMode(kDrawModeFillWhite);
+  float delta_time = 0.1;
+
+  // update loop
   for (int i = 0; i < square.nodeAmt; i++) {
-    SoftbodyNode node = square.nodes[i];
+    SoftbodyNode *node = &square.nodes[i];
+    node->velocity.y += GRAVITY * delta_time;
+
+    for (int j = 0; j < node->springAmt; j++) {
+      SoftbodySpring target = node->springs[j];
+    }
+
+    node->pos = add(node->pos, mulScalar(node->velocity, delta_time));
+  }
+
+  // draw loop
+  for (int i = 0; i < square.nodeAmt; i++) {
+    SoftbodyNode *node = &square.nodes[i];
     // char text[128];
     // sprintf(text, "%d: (%f,%f)", i, node.pos.x, node.pos.y);
     // pd->graphics->drawText(text, strlen(text), kASCIIEncoding, 0, i * 20);
 
-    pd->graphics->drawRect(node.pos.x - 4, node.pos.y - 4, 8, 8, kColorWhite);
+    pd->graphics->drawRect(node->pos.x - 4, node->pos.y - 4, 8, 8, kColorWhite);
 
-    for (int j = 0; j < node.springAmt; j++) {
-      SoftbodySpring target = node.springs[j];
-      pd->graphics->drawLine(node.pos.x, node.pos.y, target.target.x,
-                             target.target.y, 2, kColorWhite);
+    for (int j = 0; j < node->springAmt; j++) {
+      SoftbodySpring *target = &node->springs[j];
+      pd->graphics->drawLine(node->pos.x, node->pos.y, target->target.x,
+                             target->target.y, 2, kColorWhite);
     }
   }
 
