@@ -140,12 +140,18 @@ Softbody createSquareSoftbody(float length, Vec2 origin) {
   return createSoftbody(nodes, 4);
 }
 
-Softbody square;
+Softbody squares[5];
+int squareCount = 0;
 
-void createStartSquare(void) {
+void addSquare(void) {
   float width = 50.0f;
   Vec2 origin = {(400.0f - width) / 2, 16.0f};
-  square = createSquareSoftbody(width, origin);
+  Softbody square = createSquareSoftbody(width, origin);
+  if (squareCount >= 5) {
+    squareCount = 0;
+  }
+  squares[squareCount] = square;
+  squareCount++;
 }
 
 int eventHandler(PlaydateAPI *pd, PDSystemEvent event, uint32_t arg) {
@@ -162,7 +168,7 @@ int eventHandler(PlaydateAPI *pd, PDSystemEvent event, uint32_t arg) {
     if (heidi == NULL)
       pd->system->error("Couldn't load heidi!! %s", err2);
 
-    createStartSquare();
+    addSquare();
 
     pd->system->setUpdateCallback(update, pd);
     pd->system->setPeripheralsEnabled(kAccelerometer);
@@ -191,63 +197,69 @@ static int update(void *userdata) {
   GRAVITY.y = accY * 58.0f;
 
   // update loop
-  for (int i = 0; i < square.nodeAmt; i++) {
-    SoftbodyNode *node = &square.nodes[i];
-    node->velocity = add(node->velocity, mulScalar(GRAVITY, delta_time));
-    if (node->pos.y >= 240) {
-      float delta = node->pos.y - 240;
-      node->velocity.y -= delta * 100.0f * delta_time;
+  for (int s = 0; s < squareCount; s++) {
+    Softbody square = squares[s];
+
+    for (int i = 0; i < square.nodeAmt; i++) {
+      SoftbodyNode *node = &square.nodes[i];
+      node->velocity = add(node->velocity, mulScalar(GRAVITY, delta_time));
+      if (node->pos.y >= 240) {
+        float delta = node->pos.y - 240;
+        node->velocity.y -= delta * 100.0f * delta_time;
+      }
+      if (node->pos.x >= 400) {
+        float delta = node->pos.x - 400;
+        node->velocity.x -= delta * 100.0f * delta_time;
+      }
+      if (node->pos.y < 0) {
+        float delta = node->pos.y;
+        node->velocity.y -= delta * 100.0f * delta_time;
+      }
+      if (node->pos.x < 0) {
+        float delta = node->pos.x;
+        node->velocity.x -= delta * 100.0f * delta_time;
+      }
+
+      for (int j = 0; j < node->springAmt; j++) {
+        SoftbodySpring *spring = &node->springs[j];
+        float dist = distance(node->pos, spring->target->pos);
+
+        float stiffness = 24.0;
+        float damping = 2.2;
+
+        float springForce = (spring->targetLength - dist) * stiffness;
+
+        Vec2 velocityDelta = sub(spring->target->velocity, node->velocity);
+        Vec2 direction = divScalar(sub(spring->target->pos, node->pos), dist);
+        float dampForce = -damping * dot(velocityDelta, direction);
+
+        Vec2 totalForce = mulScalar(direction, springForce + dampForce);
+
+        spring->target->velocity =
+            add(spring->target->velocity, mulScalar(totalForce, delta_time));
+
+        node->velocity =
+            add(node->velocity, mulScalar(totalForce, -delta_time));
+      }
+
+      node->pos = add(node->pos, mulScalar(node->velocity, delta_time));
     }
-    if (node->pos.x >= 400) {
-      float delta = node->pos.x - 400;
-      node->velocity.x -= delta * 100.0f * delta_time;
-    }
-    if (node->pos.y < 0) {
-      float delta = node->pos.y;
-      node->velocity.y -= delta * 100.0f * delta_time;
-    }
-    if (node->pos.x < 0) {
-      float delta = node->pos.x;
-      node->velocity.x -= delta * 100.0f * delta_time;
-    }
 
-    for (int j = 0; j < node->springAmt; j++) {
-      SoftbodySpring *spring = &node->springs[j];
-      float dist = distance(node->pos, spring->target->pos);
+    // draw loop
+    for (int i = 0; i < square.nodeAmt; i++) {
+      SoftbodyNode *node = &square.nodes[i];
+      // char text[128];
+      // sprintf(text, "%d: (%f,%f)", i, node.pos.x, node.pos.y);
+      // pd->graphics->drawText(text, strlen(text), kASCIIEncoding, 0, i * 20);
 
-      float stiffness = 24.0;
-      float damping = 2.2;
+      pd->graphics->drawRect(node->pos.x - 4, node->pos.y - 4, 8, 8,
+                             kColorWhite);
 
-      float springForce = (spring->targetLength - dist) * stiffness;
-
-      Vec2 velocityDelta = sub(spring->target->velocity, node->velocity);
-      Vec2 direction = divScalar(sub(spring->target->pos, node->pos), dist);
-      float dampForce = -damping * dot(velocityDelta, direction);
-
-      Vec2 totalForce = mulScalar(direction, springForce + dampForce);
-
-      spring->target->velocity =
-          add(spring->target->velocity, mulScalar(totalForce, delta_time));
-
-      node->velocity = add(node->velocity, mulScalar(totalForce, -delta_time));
-    }
-
-    node->pos = add(node->pos, mulScalar(node->velocity, delta_time));
-  }
-
-  // draw loop
-  for (int i = 0; i < square.nodeAmt; i++) {
-    SoftbodyNode *node = &square.nodes[i];
-    // char text[128];
-    // sprintf(text, "%d: (%f,%f)", i, node.pos.x, node.pos.y);
-    // pd->graphics->drawText(text, strlen(text), kASCIIEncoding, 0, i * 20);
-
-    pd->graphics->drawRect(node->pos.x - 4, node->pos.y - 4, 8, 8, kColorWhite);
-
-    for (int j = 0; j < node->springAmt; j++) {
-      SoftbodySpring *spring = &node->springs[j];
-      pd->graphics->drawLine(node->pos.x, node->pos.y, spring->target->pos.x,
-                             spring->target->pos.y, 2, kColorWhite);
+      for (int j = 0; j < node->springAmt; j++) {
+        SoftbodySpring *spring = &node->springs[j];
+        pd->graphics->drawLine(node->pos.x, node->pos.y, spring->target->pos.x,
+                               spring->target->pos.y, 2, kColorWhite);
+      }
     }
   }
 
@@ -256,7 +268,11 @@ static int update(void *userdata) {
   PDButtons released;
   pd->system->getButtonState(&current, &pushed, &released);
   if (pushed & kButtonA) {
-    createStartSquare();
+    addSquare();
+  }
+  if (pushed & kButtonB) {
+    squareCount = 0;
+    addSquare();
   }
 
   return 1;
