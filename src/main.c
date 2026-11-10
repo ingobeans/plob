@@ -64,6 +64,20 @@ Vec2 mulScalar(Vec2 a, float b) {
   a.y *= b;
   return a;
 }
+float lerp(float a, float b, float t) { return a + (b - a) * t; }
+Vec2 lerpVec2(Vec2 a, Vec2 b, float t) {
+  a.x = lerp(a.x, b.x, t);
+  a.y = lerp(a.y, b.y, t);
+  return a;
+}
+
+float dot(Vec2 a, Vec2 b) {
+  float result = 0.0;
+  result += a.x * b.x;
+  result += a.y * b.y;
+  return result;
+}
+
 Vec2 divVec2(Vec2 a, Vec2 b) {
   a.x /= b.x;
   a.y /= b.y;
@@ -170,15 +184,21 @@ static int update(void *userdata) {
     for (int j = 0; j < node->springAmt; j++) {
       SoftbodySpring *spring = &node->springs[j];
       float dist = distance(node->pos, spring->target->pos);
-      float delta = spring->targetLength - dist;
-      Vec2 force = mulScalar(spring->sourceDir, delta);
 
-      float stiffness = 8.0;
+      float stiffness = 7.0;
+      float damping = 0.8;
 
-      spring->target->velocity = add(spring->target->velocity,
-                                     mulScalar(force, delta_time * stiffness));
-      node->velocity =
-          add(node->velocity, mulScalar(force, -delta_time * stiffness));
+      float springForce = (spring->targetLength - dist) * stiffness;
+
+      Vec2 velocityDelta = sub(spring->target->velocity, node->velocity);
+      float dampForce = -damping * dot(velocityDelta, spring->sourceDir);
+
+      Vec2 totalForce = mulScalar(spring->sourceDir, springForce + dampForce);
+
+      spring->target->velocity =
+          add(spring->target->velocity, mulScalar(totalForce, delta_time));
+
+      node->velocity = add(node->velocity, mulScalar(totalForce, -delta_time));
     }
 
     node->pos = add(node->pos, mulScalar(node->velocity, delta_time));
