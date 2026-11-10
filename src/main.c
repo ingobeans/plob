@@ -22,7 +22,6 @@ struct SoftbodyNode;
 
 typedef struct {
   struct SoftbodyNode *target;
-  Vec2 sourceDir;
   float targetLength;
 } SoftbodySpring;
 
@@ -101,8 +100,6 @@ Softbody createSoftbody(SoftbodyNode nodes[4], int nodeAmt) {
       SoftbodySpring *spring = &node->springs[j];
       float length = distance(node->pos, spring->target->pos);
       spring->targetLength = length;
-      Vec2 delta = sub(spring->target->pos, node->pos);
-      spring->sourceDir = divScalar(delta, length);
     }
   }
   Softbody body = {nodes, nodeAmt};
@@ -127,12 +124,12 @@ Softbody createSquareSoftbody(float length, Vec2 origin) {
       springAmt = 2;
     }
 
-    SoftbodySpring spring = {&nodes[next], {0}, 0};
+    SoftbodySpring spring = {&nodes[next], 0};
     SoftbodySpring *springs = malloc(sizeof(SoftbodySpring) * springAmt);
     springs[0] = spring;
 
     if (springAmt > 1) {
-      SoftbodySpring diagonal = {&nodes[i + 2], {0}, 0};
+      SoftbodySpring diagonal = {&nodes[i + 2], 0};
       springs[1] = diagonal;
     }
 
@@ -190,8 +187,8 @@ static int update(void *userdata) {
   pd->system->getAccelerometer(&accX, &accY, &accZ);
   // pd->system->logToConsole("Acceleromter: %f, %f, %f", accX, accY, accZ);
 
-  GRAVITY.x = accX * 9.8f;
-  GRAVITY.y = accY * 9.8f;
+  GRAVITY.x = accX * 20.0f;
+  GRAVITY.y = accY * 20.0f;
 
   // update loop
   for (int i = 0; i < square.nodeAmt; i++) {
@@ -218,15 +215,16 @@ static int update(void *userdata) {
       SoftbodySpring *spring = &node->springs[j];
       float dist = distance(node->pos, spring->target->pos);
 
-      float stiffness = 7.0;
-      float damping = 1.7;
+      float stiffness = 12.0;
+      float damping = 2.2;
 
       float springForce = (spring->targetLength - dist) * stiffness;
 
       Vec2 velocityDelta = sub(spring->target->velocity, node->velocity);
-      float dampForce = -damping * dot(velocityDelta, spring->sourceDir);
+      Vec2 direction = divScalar(sub(spring->target->pos, node->pos), dist);
+      float dampForce = -damping * dot(velocityDelta, direction);
 
-      Vec2 totalForce = mulScalar(spring->sourceDir, springForce + dampForce);
+      Vec2 totalForce = mulScalar(direction, springForce + dampForce);
 
       spring->target->velocity =
           add(spring->target->velocity, mulScalar(totalForce, delta_time));
