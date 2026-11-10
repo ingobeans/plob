@@ -16,10 +16,10 @@ device:
 upload:
 	make device
 	sudo echo Uploading game to ${PLAYDATE_PORT}
-	DEVICES=$$(ls /dev/ | grep -E "sd.{1,}1") && \
+	DEVICES=$$(ls /dev/ | grep -E "sd.{1,}1" || true) && \
 	pdutil ${PLAYDATE_PORT} datadisk && \
 	while true; do \
-		NEW_DEVICES_LIST=$$(ls /dev/ | grep -E "sd.{1,}1") && \
+		NEW_DEVICES_LIST=$$(ls /dev/ | grep -E "sd.{1,}1" || true) && \
 		NEW_DEVICES=$${NEW_DEVICES_LIST#$$DEVICES}; \
 		if [ $${#NEW_DEVICES} -ne 0 ]; then \
 			echo "found...";\
