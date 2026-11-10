@@ -84,8 +84,6 @@ Softbody createSoftbody(SoftbodyNode nodes[4], int nodeAmt) {
       spring->targetLength = length;
       Vec2 delta = sub(spring->target->pos, node->pos);
       spring->sourceDir = divScalar(delta, length);
-      printf("wa: %f, %f (%f)\n", spring->sourceDir.x, spring->sourceDir.y,
-             spring->targetLength);
     }
   }
   Softbody body = {nodes, nodeAmt};
@@ -105,10 +103,21 @@ Softbody createSquareSoftbody(float length, Vec2 origin) {
       next = 0;
     }
 
+    int springAmt = 1;
+    if (i <= 1) {
+      springAmt = 2;
+    }
+
     SoftbodySpring spring = {&nodes[next], {0}, 0};
-    SoftbodySpring *springs = malloc(sizeof(SoftbodySpring) * 1);
+    SoftbodySpring *springs = malloc(sizeof(SoftbodySpring) * springAmt);
     springs[0] = spring;
-    SoftbodyNode node = {points[i], {0}, springs, 1};
+
+    if (springAmt > 1) {
+      SoftbodySpring diagonal = {&nodes[i + 2], {0}, 0};
+      springs[1] = diagonal;
+    }
+
+    SoftbodyNode node = {points[i], {0}, springs, springAmt};
     nodes[i] = node;
   };
 
@@ -164,9 +173,12 @@ static int update(void *userdata) {
       float delta = spring->targetLength - dist;
       Vec2 force = mulScalar(spring->sourceDir, delta);
 
-      spring->target->velocity =
-          add(spring->target->velocity, mulScalar(force, delta_time));
-      node->velocity = add(node->velocity, mulScalar(force, -delta_time));
+      float stiffness = 8.0;
+
+      spring->target->velocity = add(spring->target->velocity,
+                                     mulScalar(force, delta_time * stiffness));
+      node->velocity =
+          add(node->velocity, mulScalar(force, -delta_time * stiffness));
     }
 
     node->pos = add(node->pos, mulScalar(node->velocity, delta_time));
