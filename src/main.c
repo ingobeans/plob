@@ -131,6 +131,10 @@ static int update(void *userdata) {
   for (int i = 0; i < square.nodeAmt; i++) {
     SoftbodyNode *node = &square.nodes[i];
     node->velocity.y += GRAVITY * delta_time;
+    if (node->pos.y >= 240) {
+      float delta = node->pos.y - 240;
+      node->velocity.y -= delta * 100.0f * delta_time;
+    }
 
     for (int j = 0; j < node->springAmt; j++) {
       SoftbodySpring target = node->springs[j];
