@@ -3,6 +3,7 @@
 #include "pd_api/pd_api_sys.h"
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 static int update(void *userdata);
 const char *fontpath = "/System/Fonts/Asheville-Sans-14-Bold.pft";
@@ -106,6 +107,11 @@ Softbody createSoftbody(SoftbodyNode nodes[4], int nodeAmt) {
   return body;
 }
 
+void freeSoftbody(Softbody *body) {
+  free(body->nodes->springs);
+  free(body->nodes);
+}
+
 Softbody createSquareSoftbody(float length, Vec2 origin) {
   Vec2 nw = {origin.x, origin.y};
   Vec2 ne = {length + origin.x, origin.y};
@@ -149,9 +155,16 @@ void addSquare(void) {
   Softbody square = createSquareSoftbody(width, origin);
   if (squareCount >= 5) {
     squareCount = 0;
+    freeSoftbody(&squares[squareCount]);
   }
   squares[squareCount] = square;
   squareCount++;
+}
+void clearSquares(void) {
+  for (int i = 0; i < squareCount; i++) {
+    freeSoftbody(&squares[i]);
+  }
+  squareCount = 0;
 }
 
 int eventHandler(PlaydateAPI *pd, PDSystemEvent event, uint32_t arg) {
@@ -271,7 +284,7 @@ static int update(void *userdata) {
     addSquare();
   }
   if (pushed & kButtonB) {
-    squareCount = 0;
+    clearSquares();
     addSquare();
   }
 
