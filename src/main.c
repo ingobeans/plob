@@ -187,8 +187,8 @@ static int update(void *userdata) {
   pd->system->getAccelerometer(&accX, &accY, &accZ);
   // pd->system->logToConsole("Acceleromter: %f, %f, %f", accX, accY, accZ);
 
-  GRAVITY.x = accX * 20.0f;
-  GRAVITY.y = accY * 20.0f;
+  GRAVITY.x = accX * 58.0f;
+  GRAVITY.y = accY * 58.0f;
 
   // update loop
   for (int i = 0; i < square.nodeAmt; i++) {
@@ -215,7 +215,7 @@ static int update(void *userdata) {
       SoftbodySpring *spring = &node->springs[j];
       float dist = distance(node->pos, spring->target->pos);
 
-      float stiffness = 12.0;
+      float stiffness = 24.0;
       float damping = 2.2;
 
       float springForce = (spring->targetLength - dist) * stiffness;
