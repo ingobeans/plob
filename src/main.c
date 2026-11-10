@@ -2,8 +2,6 @@
 #include "pd_api/pd_api_gfx.h"
 #include <math.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 static int update(void *userdata);
 const char *fontpath = "/System/Fonts/Asheville-Sans-14-Bold.pft";
@@ -21,12 +19,15 @@ typedef struct {
   float y;
 } Vec2;
 
-typedef struct {
-  Vec2 *target;
-  float targetDist;
-} SoftbodySpring;
+struct SoftbodyNode;
 
 typedef struct {
+  struct SoftbodyNode *target;
+  Vec2 sourceDir;
+  float targetLength;
+} SoftbodySpring;
+
+typedef struct SoftbodyNode {
   Vec2 pos;
   Vec2 velocity;
   SoftbodySpring *springs;
@@ -48,7 +49,12 @@ Vec2 add(Vec2 a, Vec2 b) {
   a.y += b.y;
   return a;
 }
-Vec2 mul(Vec2 a, Vec2 b) {
+Vec2 sub(Vec2 a, Vec2 b) {
+  a.x -= b.x;
+  a.y -= b.y;
+  return a;
+}
+Vec2 mulVec2(Vec2 a, Vec2 b) {
   a.x *= b.x;
   a.y *= b.y;
   return a;
@@ -58,14 +64,28 @@ Vec2 mulScalar(Vec2 a, float b) {
   a.y *= b;
   return a;
 }
+Vec2 divVec2(Vec2 a, Vec2 b) {
+  a.x /= b.x;
+  a.y /= b.y;
+  return a;
+}
+Vec2 divScalar(Vec2 a, float b) {
+  a.x /= b;
+  a.y /= b;
+  return a;
+}
 
 Softbody createSoftbody(SoftbodyNode nodes[4], int nodeAmt) {
   for (int i = 0; i < nodeAmt; i++) {
     SoftbodyNode *node = &nodes[i];
     for (int j = 0; j < node->springAmt; j++) {
       SoftbodySpring *spring = &node->springs[j];
-      float length = distance(node->pos, *spring->target);
-      spring->targetDist = length;
+      float length = distance(node->pos, spring->target->pos);
+      spring->targetLength = length;
+      Vec2 delta = sub(spring->target->pos, node->pos);
+      spring->sourceDir = divScalar(delta, length);
+      printf("wa: %f, %f (%f)\n", spring->sourceDir.x, spring->sourceDir.y,
+             spring->targetLength);
     }
   }
   Softbody body = {nodes, nodeAmt};
@@ -84,7 +104,8 @@ Softbody createSquareSoftbody(float length, Vec2 origin) {
     if (next >= 4) {
       next = 0;
     }
-    SoftbodySpring spring = {&nodes[next].pos, 0};
+
+    SoftbodySpring spring = {&nodes[next], {0}, 0};
     SoftbodySpring *springs = malloc(sizeof(SoftbodySpring) * 1);
     springs[0] = spring;
     SoftbodyNode node = {points[i], {0}, springs, 1};
@@ -126,6 +147,7 @@ static int update(void *userdata) {
 
   pd->graphics->setDrawMode(kDrawModeFillWhite);
   float delta_time = 0.1;
+  // delta_time = pd->system->getCrankChange() / 100.0f;
 
   // update loop
   for (int i = 0; i < square.nodeAmt; i++) {
@@ -137,7 +159,14 @@ static int update(void *userdata) {
     }
 
     for (int j = 0; j < node->springAmt; j++) {
-      SoftbodySpring target = node->springs[j];
+      SoftbodySpring *spring = &node->springs[j];
+      float dist = distance(node->pos, spring->target->pos);
+      float delta = spring->targetLength - dist;
+      Vec2 force = mulScalar(spring->sourceDir, delta);
+
+      spring->target->velocity =
+          add(spring->target->velocity, mulScalar(force, delta_time));
+      node->velocity = add(node->velocity, mulScalar(force, -delta_time));
     }
 
     node->pos = add(node->pos, mulScalar(node->velocity, delta_time));
@@ -153,9 +182,9 @@ static int update(void *userdata) {
     pd->graphics->drawRect(node->pos.x - 4, node->pos.y - 4, 8, 8, kColorWhite);
 
     for (int j = 0; j < node->springAmt; j++) {
-      SoftbodySpring *target = &node->springs[j];
-      pd->graphics->drawLine(node->pos.x, node->pos.y, target->target->x,
-                             target->target->y, 2, kColorWhite);
+      SoftbodySpring *spring = &node->springs[j];
+      pd->graphics->drawLine(node->pos.x, node->pos.y, spring->target->pos.x,
+                             spring->target->pos.y, 2, kColorWhite);
     }
   }
 
