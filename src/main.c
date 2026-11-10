@@ -26,6 +26,7 @@ typedef struct {
 
 typedef struct {
   Vec2 pos;
+  Vec2 velocity;
   SoftbodySpring *springs;
   int springAmt;
 } SoftbodyNode;
@@ -54,11 +55,11 @@ Softbody createSoftbody(SoftbodyNode nodes[4], int nodeAmt) {
   return body;
 }
 
-Softbody createSquareSoftbody(float length) {
-  Vec2 nw = {0.0, 0.0};
-  Vec2 ne = {length, 0.0};
-  Vec2 se = {length, length};
-  Vec2 sw = {0.0, length};
+Softbody createSquareSoftbody(float length, Vec2 origin) {
+  Vec2 nw = {origin.x, origin.y};
+  Vec2 ne = {length + origin.x, origin.y};
+  Vec2 se = {length + origin.x, length + origin.y};
+  Vec2 sw = {origin.x, length + origin.y};
   Vec2 points[4] = {nw, ne, se, sw};
   SoftbodyNode *nodes = malloc(sizeof(SoftbodyNode) * 4);
   for (int i = 0; i < 4; i++) {
@@ -69,7 +70,7 @@ Softbody createSquareSoftbody(float length) {
     SoftbodySpring spring = {points[next], 0};
     SoftbodySpring *springs = malloc(sizeof(SoftbodySpring) * 1);
     springs[0] = spring;
-    SoftbodyNode node = {points[i], springs};
+    SoftbodyNode node = {points[i], {0}, springs, 1};
     nodes[i] = node;
   };
 
@@ -92,7 +93,9 @@ int eventHandler(PlaydateAPI *pd, PDSystemEvent event, uint32_t arg) {
     if (heidi == NULL)
       pd->system->error("Couldn't load heidi!! %s", err2);
 
-    square = createSquareSoftbody(10.0);
+    float width = 50.0f;
+    Vec2 origin = {(400.0f - width) / 2, 16.0f};
+    square = createSquareSoftbody(width, origin);
 
     pd->system->setUpdateCallback(update, pd);
   }
@@ -106,10 +109,18 @@ static int update(void *userdata) {
 
   pd->graphics->setDrawMode(kDrawModeFillWhite);
   for (int i = 0; i < square.nodeAmt; i++) {
-    char text[128];
-    sprintf(text, "%d: (%f,%f)", i, square.nodes[i].pos.x,
-            square.nodes[i].pos.y);
-    pd->graphics->drawText(text, strlen(text), kASCIIEncoding, 0, i * 20);
+    SoftbodyNode node = square.nodes[i];
+    // char text[128];
+    // sprintf(text, "%d: (%f,%f)", i, node.pos.x, node.pos.y);
+    // pd->graphics->drawText(text, strlen(text), kASCIIEncoding, 0, i * 20);
+
+    pd->graphics->drawRect(node.pos.x - 4, node.pos.y - 4, 8, 8, kColorWhite);
+
+    for (int j = 0; j < node.springAmt; j++) {
+      SoftbodySpring target = node.springs[j];
+      pd->graphics->drawLine(node.pos.x, node.pos.y, target.target.x,
+                             target.target.y, 2, kColorWhite);
+    }
   }
 
   return 1;
