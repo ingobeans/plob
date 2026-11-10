@@ -76,6 +76,12 @@ float dot(Vec2 a, Vec2 b) {
   result += a.y * b.y;
   return result;
 }
+float absFloat(float a) {
+  if (a < 0.0f) {
+    return a * -1.0f;
+  }
+  return a;
+}
 
 Vec2 divVec2(Vec2 a, Vec2 b) {
   a.x /= b.x;
@@ -139,6 +145,12 @@ Softbody createSquareSoftbody(float length, Vec2 origin) {
 
 Softbody square;
 
+void createStartSquare(void) {
+  float width = 50.0f;
+  Vec2 origin = {(400.0f - width) / 2, 16.0f};
+  square = createSquareSoftbody(width, origin);
+}
+
 int eventHandler(PlaydateAPI *pd, PDSystemEvent event, uint32_t arg) {
   if (event == kEventInit) {
     const char *err;
@@ -153,9 +165,7 @@ int eventHandler(PlaydateAPI *pd, PDSystemEvent event, uint32_t arg) {
     if (heidi == NULL)
       pd->system->error("Couldn't load heidi!! %s", err2);
 
-    float width = 50.0f;
-    Vec2 origin = {(400.0f - width) / 2, 16.0f};
-    square = createSquareSoftbody(width, origin);
+    createStartSquare();
 
     pd->system->setUpdateCallback(update, pd);
     pd->system->setPeripheralsEnabled(kAccelerometer);
@@ -178,10 +188,10 @@ static int update(void *userdata) {
   float accY = 0;
   float accZ = 0;
   pd->system->getAccelerometer(&accX, &accY, &accZ);
-  pd->system->logToConsole("Acceleromter: %f, %f, %f", accX, accY, accZ);
+  // pd->system->logToConsole("Acceleromter: %f, %f, %f", accX, accY, accZ);
 
-  GRAVITY.x = accX * 9.8;
-  GRAVITY.y = accY * 9.8;
+  GRAVITY.x = accX * 9.8f;
+  GRAVITY.y = accY * 9.8f;
 
   // update loop
   for (int i = 0; i < square.nodeAmt; i++) {
@@ -209,7 +219,7 @@ static int update(void *userdata) {
       float dist = distance(node->pos, spring->target->pos);
 
       float stiffness = 7.0;
-      float damping = 0.8;
+      float damping = 1.7;
 
       float springForce = (spring->targetLength - dist) * stiffness;
 
@@ -241,6 +251,14 @@ static int update(void *userdata) {
       pd->graphics->drawLine(node->pos.x, node->pos.y, spring->target->pos.x,
                              spring->target->pos.y, 2, kColorWhite);
     }
+  }
+
+  PDButtons current;
+  PDButtons pushed;
+  PDButtons released;
+  pd->system->getButtonState(&current, &pushed, &released);
+  if (pushed & kButtonA) {
+    createStartSquare();
   }
 
   return 1;
