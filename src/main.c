@@ -115,7 +115,7 @@ bool pointInside(Softbody *body, Vec2 point) {
     float lineVal = slope * point.x + nextNode->pos.y - slope * nextNode->pos.x;
 
     bool onInside = point.y > lineVal;
-    if (slope < 0.0f ^ nextNode->pos.y < node->pos.y) {
+    if ((slope < 0.0f) ^ (nextNode->pos.y < node->pos.y)) {
       onInside = !onInside;
     }
 
