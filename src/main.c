@@ -115,7 +115,9 @@ bool pointInside(Softbody *body, Vec2 point) {
     float lineVal = slope * point.x + nextNode->pos.y - slope * nextNode->pos.x;
 
     bool side = point.y > lineVal;
-    // printf("Slope: %f\n", slope);
+    if (slope < 0.0f ^ nextNode->pos.y < node->pos.y) {
+      side = !side;
+    }
     printf("result: %i\n", side);
 
     if (i == 0) {
@@ -288,6 +290,16 @@ static int update(void *userdata) {
   pd->graphics->drawRect(testPoint.x - 2.0f, testPoint.y - 2.0f, 4.0, 4.0,
                          kColorWhite);
   pointInside(&softbodies[0], testPoint);
+
+  float slope = (softbodies[0].nodes[1].pos.y - softbodies[0].nodes[0].pos.y) /
+                (softbodies[0].nodes[1].pos.x - softbodies[0].nodes[0].pos.x);
+
+  float lineValStart = slope * 0.0f + softbodies[0].nodes[1].pos.y -
+                       slope * softbodies[0].nodes[1].pos.x;
+  float lineValEnd = slope * 400.0f + softbodies[0].nodes[1].pos.y -
+                     slope * softbodies[0].nodes[1].pos.x;
+
+  pd->graphics->drawLine(0, lineValStart, 400, lineValEnd, 2, kColorWhite);
 
   gravity.x = accX * 58.0f;
   gravity.y = accY * 58.0f;
