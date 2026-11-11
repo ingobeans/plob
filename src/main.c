@@ -406,6 +406,12 @@ static int update(void *userdata) {
   }
 
   pd->system->drawFPS(0, 0);
+  char text[32];
+  int len = sprintf(text, "Bodies: %i", softbodyCount);
+
+  pd->graphics->fillRect(0, 16, len * 8, 16, kColorWhite);
+  pd->graphics->setDrawMode(kDrawModeFillBlack);
+  pd->graphics->drawText(text, len, kASCIIEncoding, 0, 16);
 
   return 1;
 }
