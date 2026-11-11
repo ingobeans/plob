@@ -112,7 +112,7 @@ bool pointInside(Softbody *body, Vec2 point) {
 
     bool side = point.y > lineVal;
     // printf("Slope: %f\n", slope);
-    printf("WA %f vs %f, result: %i\n", lineVal, point.y, side);
+    printf("WA %f vs %f, result: %i\n", (double)lineVal, (double)point.y, side);
 
     if (i == 0) {
       return false;
@@ -173,28 +173,6 @@ Softbody createSquareSoftbody(float length, Vec2 origin) {
 
   return createSoftbody(nodes, 4);
 }
-Softbody createTriangleSoftbody(float length, Vec2 origin) {
-  Vec2 n = {origin.x + length / 2.0f, origin.y};
-  Vec2 se = {length + origin.x, length + origin.y};
-  Vec2 sw = {origin.x, length + origin.y};
-  Vec2 points[3] = {n, se, sw};
-  SoftbodyNode *nodes = malloc(sizeof(SoftbodyNode) * 3);
-  for (int i = 0; i < 3; i++) {
-    int next = i + 1;
-    if (next >= 3) {
-      next = 0;
-    }
-
-    SoftbodySpring spring = {&nodes[next], 0};
-    SoftbodySpring *springs = malloc(sizeof(SoftbodySpring) * 1);
-    springs[0] = spring;
-
-    SoftbodyNode node = {points[i], {0}, springs, 1};
-    nodes[i] = node;
-  };
-
-  return createSoftbody(nodes, 3);
-}
 Vec2 origin = {(400.0f - 50.0f) / 2, 16.0f};
 
 Softbody softbodies[5];
@@ -236,7 +214,8 @@ int eventHandler(PlaydateAPI *pd, PDSystemEvent event, uint32_t arg) {
   return 0;
 }
 
-Vec2 GRAVITY = {0.0, 9.8};
+Vec2 gravity = {0.0, 0.0};
+bool freezeMovement = true;
 Vec2 testPoint = {0.0, 0.0};
 
 static int update(void *userdata) {
@@ -258,16 +237,20 @@ static int update(void *userdata) {
                          kColorWhite);
   pointInside(&softbodies[0], testPoint);
 
-  GRAVITY.x = accX * 58.0f;
-  GRAVITY.y = accY * 58.0f;
+  gravity.x = accX * 58.0f;
+  gravity.y = accY * 58.0f;
 
   // update loop
   for (int s = 0; s < softbodyCount; s++) {
     Softbody square = softbodies[s];
 
     for (int i = 0; i < square.nodeAmt; i++) {
+      if (freezeMovement) {
+        continue;
+      }
       SoftbodyNode *node = &square.nodes[i];
-      node->velocity = add(node->velocity, mulScalar(GRAVITY, delta_time));
+      node->velocity = add(node->velocity, mulScalar(gravity, delta_time));
+
       if (node->pos.y >= 240) {
         float delta = node->pos.y - 240;
         node->velocity.y -= delta * 100.0f * delta_time;
@@ -349,7 +332,7 @@ static int update(void *userdata) {
     addBody(createSquareSoftbody(50.0, origin));
   }
   if (pushed & kButtonB) {
-    addBody(createTriangleSoftbody(50.0, origin));
+    freezeMovement = !freezeMovement;
   }
 
   return 1;
