@@ -94,6 +94,34 @@ Vec2 divScalar(Vec2 a, float b) {
   return a;
 }
 
+bool pointInside(Softbody *body, Vec2 point) {
+  // body's nodes must be defined in clockwise order!
+
+  for (int i = 0; i < body->nodeAmt; i++) {
+    int next = i + 1;
+    if (next >= body->nodeAmt) {
+      next = 0;
+    }
+    SoftbodyNode *node = &body->nodes[i];
+    SoftbodyNode *nextNode = &body->nodes[next];
+
+    float slope =
+        (nextNode->pos.y - node->pos.y) / (nextNode->pos.x - node->pos.x);
+
+    float lineVal = slope * point.x - node->pos.x * slope + node->pos.y;
+
+    bool side = point.y > lineVal;
+    // printf("Slope: %f\n", slope);
+    printf("WA %f vs %f, result: %i\n", lineVal, point.y, side);
+
+    if (i == 0) {
+      return false;
+    }
+    // float val = slope * point.x;
+  }
+  return false;
+}
+
 Softbody createSoftbody(SoftbodyNode nodes[4], int nodeAmt) {
   for (int i = 0; i < nodeAmt; i++) {
     SoftbodyNode *node = &nodes[i];
@@ -180,7 +208,7 @@ void addBody(Softbody body) {
   softbodies[softbodyCount] = body;
   softbodyCount++;
 }
-void clearSquares(void) {
+void clearBodies(void) {
   for (int i = 0; i < softbodyCount; i++) {
     freeSoftbody(&softbodies[i]);
   }
@@ -201,8 +229,6 @@ int eventHandler(PlaydateAPI *pd, PDSystemEvent event, uint32_t arg) {
     if (heidi == NULL)
       pd->system->error("Couldn't load heidi!! %s", err2);
 
-    addBody(createSquareSoftbody(50.0, origin));
-
     pd->system->setUpdateCallback(update, pd);
     pd->system->setPeripheralsEnabled(kAccelerometer);
   }
@@ -211,6 +237,7 @@ int eventHandler(PlaydateAPI *pd, PDSystemEvent event, uint32_t arg) {
 }
 
 Vec2 GRAVITY = {0.0, 9.8};
+Vec2 testPoint = {0.0, 0.0};
 
 static int update(void *userdata) {
   PlaydateAPI *pd = userdata;
@@ -225,6 +252,11 @@ static int update(void *userdata) {
   float accZ = 0;
   pd->system->getAccelerometer(&accX, &accY, &accZ);
   // pd->system->logToConsole("Acceleromter: %f, %f, %f", accX, accY, accZ);
+
+  // Vec2 testPoint = {5.0, pd->system->getCrankAngle() / 360.0f * 240.0f};
+  pd->graphics->drawRect(testPoint.x - 2.0f, testPoint.y - 2.0f, 4.0, 4.0,
+                         kColorWhite);
+  pointInside(&softbodies[0], testPoint);
 
   GRAVITY.x = accX * 58.0f;
   GRAVITY.y = accY * 58.0f;
@@ -300,14 +332,24 @@ static int update(void *userdata) {
   PDButtons pushed;
   PDButtons released;
   pd->system->getButtonState(&current, &pushed, &released);
-  if (pushed & kButtonUp) {
+  if (current & kButtonRight) {
+    testPoint.x += 60.0f * delta_time;
+  }
+  if (current & kButtonLeft) {
+    testPoint.x -= 60.0f * delta_time;
+  }
+  if (current & kButtonUp) {
+    testPoint.y -= 60.0f * delta_time;
+  }
+  if (current & kButtonDown) {
+    testPoint.y += 60.0f * delta_time;
+  }
+
+  if (pushed & kButtonA) {
     addBody(createSquareSoftbody(50.0, origin));
   }
-  if (pushed & kButtonRight) {
-    addBody(createTriangleSoftbody(50.0, origin));
-  }
   if (pushed & kButtonB) {
-    clearSquares();
+    addBody(createTriangleSoftbody(50.0, origin));
   }
 
   return 1;
