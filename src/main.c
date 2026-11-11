@@ -220,7 +220,7 @@ void rotateBody(Softbody *body, float theta) {
   }
 }
 
-Vec2 origin = {(400.0f - 50.0f) / 2, 16.0f};
+Vec2 origin = {(400.0f - 50.0f) / 2, 48.0f};
 
 Softbody softbodies[5];
 int softbodyCount = 0;
@@ -256,6 +256,7 @@ int eventHandler(PlaydateAPI *pd, PDSystemEvent event, uint32_t arg) {
 
     pd->system->setUpdateCallback(update, pd);
     pd->system->setPeripheralsEnabled(kAccelerometer);
+    addBody(createSquareSoftbody(50.0, origin));
   }
 
   return 0;
