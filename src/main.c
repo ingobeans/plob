@@ -416,5 +416,7 @@ static int update(void *userdata) {
     freezeMovement = !freezeMovement;
   }
 
+  pd->system->drawFPS(0, 0);
+
   return 1;
 }
