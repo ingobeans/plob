@@ -145,26 +145,46 @@ Softbody createSquareSoftbody(float length, Vec2 origin) {
 
   return createSoftbody(nodes, 4);
 }
+Softbody createTriangleSoftbody(float length, Vec2 origin) {
+  Vec2 n = {origin.x + length / 2.0f, origin.y};
+  Vec2 se = {length + origin.x, length + origin.y};
+  Vec2 sw = {origin.x, length + origin.y};
+  Vec2 points[3] = {n, se, sw};
+  SoftbodyNode *nodes = malloc(sizeof(SoftbodyNode) * 3);
+  for (int i = 0; i < 3; i++) {
+    int next = i + 1;
+    if (next >= 3) {
+      next = 0;
+    }
 
-Softbody squares[5];
-int squareCount = 0;
+    SoftbodySpring spring = {&nodes[next], 0};
+    SoftbodySpring *springs = malloc(sizeof(SoftbodySpring) * 1);
+    springs[0] = spring;
 
-void addSquare(void) {
-  float width = 50.0f;
-  Vec2 origin = {(400.0f - width) / 2, 16.0f};
-  Softbody square = createSquareSoftbody(width, origin);
-  if (squareCount >= 5) {
-    squareCount = 0;
-    freeSoftbody(&squares[squareCount]);
+    SoftbodyNode node = {points[i], {0}, springs, 1};
+    nodes[i] = node;
+  };
+
+  return createSoftbody(nodes, 3);
+}
+Vec2 origin = {(400.0f - 50.0f) / 2, 16.0f};
+
+Softbody softbodies[5];
+int softbodyCount = 0;
+
+void addBody(Softbody body) {
+  if (softbodyCount >= 5) {
+    softbodyCount = 0;
+    freeSoftbody(&softbodies[softbodyCount]);
   }
-  squares[squareCount] = square;
-  squareCount++;
+  softbodies[softbodyCount] = body;
+  softbodyCount++;
 }
 void clearSquares(void) {
-  for (int i = 0; i < squareCount; i++) {
-    freeSoftbody(&squares[i]);
+  for (int i = 0; i < softbodyCount; i++) {
+    freeSoftbody(&softbodies[i]);
   }
-  squareCount = 0;
+  softbodyCount = 0;
 }
 
 int eventHandler(PlaydateAPI *pd, PDSystemEvent event, uint32_t arg) {
@@ -181,7 +201,7 @@ int eventHandler(PlaydateAPI *pd, PDSystemEvent event, uint32_t arg) {
     if (heidi == NULL)
       pd->system->error("Couldn't load heidi!! %s", err2);
 
-    addSquare();
+    addBody(createSquareSoftbody(50.0, origin));
 
     pd->system->setUpdateCallback(update, pd);
     pd->system->setPeripheralsEnabled(kAccelerometer);
@@ -210,8 +230,8 @@ static int update(void *userdata) {
   GRAVITY.y = accY * 58.0f;
 
   // update loop
-  for (int s = 0; s < squareCount; s++) {
-    Softbody square = squares[s];
+  for (int s = 0; s < softbodyCount; s++) {
+    Softbody square = softbodies[s];
 
     for (int i = 0; i < square.nodeAmt; i++) {
       SoftbodyNode *node = &square.nodes[i];
@@ -280,12 +300,14 @@ static int update(void *userdata) {
   PDButtons pushed;
   PDButtons released;
   pd->system->getButtonState(&current, &pushed, &released);
-  if (pushed & kButtonA) {
-    addSquare();
+  if (pushed & kButtonUp) {
+    addBody(createSquareSoftbody(50.0, origin));
+  }
+  if (pushed & kButtonRight) {
+    addBody(createTriangleSoftbody(50.0, origin));
   }
   if (pushed & kButtonB) {
     clearSquares();
-    addSquare();
   }
 
   return 1;
