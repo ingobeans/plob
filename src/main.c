@@ -222,13 +222,16 @@ void rotateBody(Softbody *body, float theta) {
 
 Vec2 origin = {(400.0f - 50.0f) / 2, 48.0f};
 
-Softbody softbodies[5];
+Softbody *softbodies = NULL;
 int softbodyCount = 0;
+int allocatedBodies = 0;
 
 void addBody(Softbody body) {
-  if (softbodyCount >= 5) {
-    softbodyCount = 0;
-    freeSoftbody(&softbodies[softbodyCount]);
+  int toAllocate = sizeof(Softbody) * (softbodyCount + 1);
+  if (toAllocate > allocatedBodies) {
+    softbodies = realloc(softbodies, toAllocate);
+    allocatedBodies = toAllocate;
+    printf("allocated %i\n", allocatedBodies);
   }
   softbodies[softbodyCount] = body;
   softbodyCount++;
@@ -263,7 +266,7 @@ int eventHandler(PlaydateAPI *pd, PDSystemEvent event, uint32_t arg) {
 }
 
 Vec2 gravity = {0.0, 0.0};
-bool freezeMovement = true;
+bool freezeMovement = false;
 Vec2 testPoint = {0.0, 0.0};
 
 static int update(void *userdata) {
@@ -282,26 +285,9 @@ static int update(void *userdata) {
   float accY = 0;
   float accZ = 0;
   pd->system->getAccelerometer(&accX, &accY, &accZ);
-  // pd->system->logToConsole("Acceleromter: %f, %f, %f", accX, accY, accZ);
 
-  // Vec2 testPoint = {5.0, pd->system->getCrankAngle() / 360.0f * 240.0f};
   pd->graphics->drawRect(testPoint.x - 2.0f, testPoint.y - 2.0f, 4.0, 4.0,
                          kColorWhite);
-  // DEBUG:
-  // bool inside = pointInside(&softbodies[0], testPoint);
-  // printf("inside: %i\n", inside);
-
-  // float slope = (softbodies[0].nodes[1].pos.y - softbodies[0].nodes[0].pos.y)
-  // /
-  //               (softbodies[0].nodes[1].pos.x -
-  //               softbodies[0].nodes[0].pos.x);
-  // float lineValStart = slope * 0.0f + softbodies[0].nodes[1].pos.y -
-  //                      slope * softbodies[0].nodes[1].pos.x;
-  // float lineValEnd = slope * 400.0f + softbodies[0].nodes[1].pos.y -
-  //                    slope * softbodies[0].nodes[1].pos.x;
-  // pd->graphics->drawLine(0, lineValStart, 400, lineValEnd, 2, kColorWhite);
-  // :DEBUG
-
   gravity.x = accX * 58.0f;
   gravity.y = accY * 58.0f;
 
@@ -410,6 +396,9 @@ static int update(void *userdata) {
   }
 
   if (pushed & kButtonA) {
+    if (freezeMovement) {
+      clearBodies();
+    }
     addBody(createSquareSoftbody(50.0, origin));
   }
   if (pushed & kButtonB) {
