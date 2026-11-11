@@ -114,18 +114,16 @@ bool pointInside(Softbody *body, Vec2 point) {
 
     float lineVal = slope * point.x + nextNode->pos.y - slope * nextNode->pos.x;
 
-    bool side = point.y > lineVal;
+    bool onInside = point.y > lineVal;
     if (slope < 0.0f ^ nextNode->pos.y < node->pos.y) {
-      side = !side;
+      onInside = !onInside;
     }
-    printf("result: %i\n", side);
 
-    if (i == 0) {
+    if (!onInside) {
       return false;
     }
-    // float val = slope * point.x;
   }
-  return false;
+  return true;
 }
 
 Vec2 getBodyCenter(Softbody *body) {
@@ -289,28 +287,31 @@ static int update(void *userdata) {
   // Vec2 testPoint = {5.0, pd->system->getCrankAngle() / 360.0f * 240.0f};
   pd->graphics->drawRect(testPoint.x - 2.0f, testPoint.y - 2.0f, 4.0, 4.0,
                          kColorWhite);
-  pointInside(&softbodies[0], testPoint);
+  // DEBUG:
+  // bool inside = pointInside(&softbodies[0], testPoint);
+  // printf("inside: %i\n", inside);
 
-  float slope = (softbodies[0].nodes[1].pos.y - softbodies[0].nodes[0].pos.y) /
-                (softbodies[0].nodes[1].pos.x - softbodies[0].nodes[0].pos.x);
-
-  float lineValStart = slope * 0.0f + softbodies[0].nodes[1].pos.y -
-                       slope * softbodies[0].nodes[1].pos.x;
-  float lineValEnd = slope * 400.0f + softbodies[0].nodes[1].pos.y -
-                     slope * softbodies[0].nodes[1].pos.x;
-
-  pd->graphics->drawLine(0, lineValStart, 400, lineValEnd, 2, kColorWhite);
+  // float slope = (softbodies[0].nodes[1].pos.y - softbodies[0].nodes[0].pos.y)
+  // /
+  //               (softbodies[0].nodes[1].pos.x -
+  //               softbodies[0].nodes[0].pos.x);
+  // float lineValStart = slope * 0.0f + softbodies[0].nodes[1].pos.y -
+  //                      slope * softbodies[0].nodes[1].pos.x;
+  // float lineValEnd = slope * 400.0f + softbodies[0].nodes[1].pos.y -
+  //                    slope * softbodies[0].nodes[1].pos.x;
+  // pd->graphics->drawLine(0, lineValStart, 400, lineValEnd, 2, kColorWhite);
+  // :DEBUG
 
   gravity.x = accX * 58.0f;
   gravity.y = accY * 58.0f;
 
   // update loop
   for (int s = 0; s < softbodyCount; s++) {
-    Softbody body = softbodies[s];
+    Softbody *body = &softbodies[s];
 
     if (!freezeMovement) {
-      for (int i = 0; i < body.nodeAmt; i++) {
-        SoftbodyNode *node = &body.nodes[i];
+      for (int i = 0; i < body->nodeAmt; i++) {
+        SoftbodyNode *node = &body->nodes[i];
         node->velocity = add(node->velocity, mulScalar(gravity, delta_time));
 
         if (node->pos.y >= 240) {
@@ -328,6 +329,21 @@ static int update(void *userdata) {
         if (node->pos.x < 0) {
           float delta = node->pos.x;
           node->velocity.x -= delta * 100.0f * delta_time;
+        }
+
+        // check collisions
+        for (int os = 0; os < softbodyCount; os++) {
+          if (os == s)
+            continue;
+
+          bool inside = pointInside(&softbodies[os], node->pos);
+          if (inside) {
+            Vec2 dirToCenter = sub(body->center, softbodies[os].center);
+            // float length = lengthVec2(dirToCenter);
+            // dirToCenter = divScalar(dirToCenter, length);
+            node->velocity =
+                add(node->velocity, mulScalar(dirToCenter, 26.0f * delta_time));
+          }
         }
 
         for (int j = 0; j < node->springAmt; j++) {
@@ -356,11 +372,11 @@ static int update(void *userdata) {
       }
     }
 
-    body.center = getBodyCenter(&body);
+    body->center = getBodyCenter(body);
 
     // draw loop
-    for (int i = 0; i < body.nodeAmt; i++) {
-      SoftbodyNode *node = &body.nodes[i];
+    for (int i = 0; i < body->nodeAmt; i++) {
+      SoftbodyNode *node = &body->nodes[i];
       // char text[128];
       // sprintf(text, "%d: (%f,%f)", i, node.pos.x, node.pos.y);
       // pd->graphics->drawText(text, strlen(text), kASCIIEncoding, 0, i * 20);
