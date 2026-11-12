@@ -9,6 +9,7 @@ static int update(void *userdata);
 const char *fontpath = "/System/Fonts/Asheville-Sans-14-Bold.pft";
 LCDFont *font = NULL;
 LCDBitmap *heidi = NULL;
+PlaydateAPI *pd = NULL;
 
 #ifdef _WINDLL
 __declspec(dllexport)
@@ -100,7 +101,7 @@ Vec2 NULL_VEC = {0.0, 0.0};
 bool vecEquals(Vec2 a, Vec2 b) { return a.x == b.x && a.y == b.y; }
 bool vecIsNull(Vec2 a) { return a.x == NULL_VEC.x && a.y == NULL_VEC.y; }
 
-Vec2 pointInside(Softbody *body, Vec2 point) {
+Vec2 pointInside(Softbody *body, Vec2 poing) {
   // body's nodes must be defined in clockwise order!
 
   float closestSide = 9999.0;
@@ -112,18 +113,37 @@ Vec2 pointInside(Softbody *body, Vec2 point) {
     if (next >= body->nodeAmt) {
       next = 0;
     }
+    Vec2 point = poing;
     SoftbodyNode *node = &body->nodes[i];
     SoftbodyNode *nextNode = &body->nodes[next];
 
+    Vec2 nodePos = node->pos;
+    Vec2 nextNodePos = nextNode->pos;
+
+    bool flipped = absFloat(nextNodePos.x - nodePos.x) <
+                   absFloat(nextNodePos.y - nodePos.y);
+    if (flipped) {
+      float c = nodePos.y;
+      nodePos.y = nodePos.x;
+      nodePos.x = c;
+
+      c = nextNodePos.y;
+      nextNodePos.y = nextNodePos.x;
+      nextNodePos.x = c;
+
+      c = point.y;
+      point.y = point.x;
+      point.x = c;
+    }
+
     // slope = ((d-b)/(c-a))
     // f(x)  = slope*x+d-slope*c
-    float slope =
-        (nextNode->pos.y - node->pos.y) / (nextNode->pos.x - node->pos.x);
+    float slope = (nextNodePos.y - nodePos.y) / (nextNodePos.x - nodePos.x);
 
-    float lineVal = slope * point.x + nextNode->pos.y - slope * nextNode->pos.x;
+    float lineVal = slope * point.x + nextNodePos.y - slope * nextNodePos.x;
 
     bool onInside = point.y > lineVal;
-    if ((slope < 0.0f) ^ (nextNode->pos.y < node->pos.y)) {
+    if ((nextNodePos.x < nodePos.x) ^ flipped) {
       onInside = !onInside;
     }
 
@@ -131,11 +151,17 @@ Vec2 pointInside(Softbody *body, Vec2 point) {
       return NULL_VEC;
     }
 
+    Vec2 collisionPoint = {point.x, lineVal};
+    if (flipped) {
+      float c = collisionPoint.y;
+      collisionPoint.y = collisionPoint.x;
+      collisionPoint.x = c;
+    }
+
     float dist = absFloat(lineVal - point.y);
     if (dist < closestSide) {
       closestSide = dist;
-      closestPoint.x = point.x;
-      closestPoint.y = lineVal;
+      closestPoint = collisionPoint;
     }
   }
   return closestPoint;
@@ -280,11 +306,11 @@ int eventHandler(PlaydateAPI *pd, PDSystemEvent event, uint32_t arg) {
 }
 
 Vec2 gravity = {0.0, 0.0};
-bool freezeMovement = false;
+bool freezeMovement = true;
 Vec2 testPoint = {0.0, 0.0};
 
 static int update(void *userdata) {
-  PlaydateAPI *pd = userdata;
+  pd = userdata;
   pd->graphics->clear(kColorBlack);
 
   pd->graphics->setDrawMode(kDrawModeFillWhite);
@@ -304,7 +330,8 @@ static int update(void *userdata) {
                          kColorWhite);
   Vec2 inside = pointInside(&softbodies[0], testPoint);
   if (!vecIsNull(inside)) {
-    pd->system->logToConsole("Colliding: %f,%f", inside.x, inside.y);
+    pd->system->logToConsole("Colliding: %f,%f", (double)inside.x,
+                             (double)inside.y);
 
     pd->graphics->drawRect(inside.x - 4.0f, inside.y - 4.0f, 8.0f, 8.0f,
                            kColorWhite);
