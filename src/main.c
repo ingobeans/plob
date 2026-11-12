@@ -322,13 +322,30 @@ static int update(void *userdata) {
           if (os == s)
             continue;
 
-          bool inside = pointInside(&softbodies[os], node->pos);
+          Softbody *collider = &softbodies[os];
+          bool inside = pointInside(collider, node->pos);
           if (inside) {
-            Vec2 dirToCenter = sub(body->center, softbodies[os].center);
-            // float length = lengthVec2(dirToCenter);
-            // dirToCenter = divScalar(dirToCenter, length);
-            node->velocity =
-                add(node->velocity, mulScalar(dirToCenter, 26.0f * delta_time));
+            Vec2 dirToCenter = sub(body->center, collider->center);
+            // find closest node in collider
+            SoftbodyNode *closest = NULL;
+            float closestDistance = 999.0;
+            for (int osn = 0; osn < collider->nodeAmt; osn++) {
+              SoftbodyNode *n = &collider->nodes[osn];
+              float d = distance(node->pos, n->pos);
+              if (d < closestDistance) {
+                closestDistance = d;
+                closest = n;
+              }
+            }
+
+            float length = lengthVec2(dirToCenter);
+            dirToCenter = divScalar(dirToCenter, length);
+
+            closest->velocity = add(
+                node->velocity, mulScalar(dirToCenter, -280.0f * delta_time));
+
+            node->velocity = add(node->velocity,
+                                 mulScalar(dirToCenter, 280.0f * delta_time));
           }
         }
 
