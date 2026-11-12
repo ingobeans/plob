@@ -95,9 +95,17 @@ Vec2 divScalar(Vec2 a, float b) {
   a.y /= b;
   return a;
 }
+Vec2 NULL_VEC = {0.0, 0.0};
 
-bool pointInside(Softbody *body, Vec2 point) {
+bool vecEquals(Vec2 a, Vec2 b) { return a.x == b.x && a.y == b.y; }
+bool vecIsNull(Vec2 a) { return a.x == NULL_VEC.x && a.y == NULL_VEC.y; }
+
+Vec2 pointInside(Softbody *body, Vec2 point) {
   // body's nodes must be defined in clockwise order!
+
+  float closestSide = 9999.0;
+
+  Vec2 closestPoint = NULL_VEC;
 
   for (int i = 0; i < body->nodeAmt; i++) {
     int next = i + 1;
@@ -120,10 +128,17 @@ bool pointInside(Softbody *body, Vec2 point) {
     }
 
     if (!onInside) {
-      return false;
+      return NULL_VEC;
+    }
+
+    float dist = absFloat(lineVal - point.y);
+    if (dist < closestSide) {
+      closestSide = dist;
+      closestPoint.x = point.x;
+      closestPoint.y = lineVal;
     }
   }
-  return true;
+  return closestPoint;
 }
 
 Vec2 getBodyCenter(Softbody *body) {
@@ -285,8 +300,16 @@ static int update(void *userdata) {
   float accZ = 0;
   pd->system->getAccelerometer(&accX, &accY, &accZ);
 
-  pd->graphics->drawRect(testPoint.x - 2.0f, testPoint.y - 2.0f, 4.0, 4.0,
+  pd->graphics->drawRect(testPoint.x - 2.0f, testPoint.y - 2.0f, 4.0f, 4.0f,
                          kColorWhite);
+  Vec2 inside = pointInside(&softbodies[0], testPoint);
+  if (!vecIsNull(inside)) {
+    pd->system->logToConsole("Colliding: %f,%f", inside.x, inside.y);
+
+    pd->graphics->drawRect(inside.x - 4.0f, inside.y - 4.0f, 8.0f, 8.0f,
+                           kColorWhite);
+  }
+
   gravity.x = accX * 58.0f;
   gravity.y = accY * 58.0f;
 
@@ -326,8 +349,8 @@ static int update(void *userdata) {
             continue;
 
           Softbody *collider = &softbodies[os];
-          bool inside = pointInside(collider, node->pos);
-          if (inside) {
+          Vec2 collidePoint = pointInside(collider, node->pos);
+          if (!vecIsNull(collidePoint)) {
             Vec2 dirToCenter = sub(body->center, collider->center);
             // find closest node in collider
             SoftbodyNode *closest = NULL;
@@ -438,7 +461,7 @@ static int update(void *userdata) {
     pd->graphics->fillRect(0, 16, len * 8, 16, kColorWhite);
     pd->graphics->setDrawMode(kDrawModeFillBlack);
     pd->graphics->drawText(text, len, kASCIIEncoding, 0, 16);
-    free(text);
+    // free(text);
   }
 
   return 1;
