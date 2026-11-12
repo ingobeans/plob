@@ -301,20 +301,24 @@ static int update(void *userdata) {
         node->velocity = add(node->velocity, mulScalar(gravity, delta_time));
 
         if (node->pos.y >= 240) {
-          float delta = node->pos.y - 240;
-          node->velocity.y -= delta * 100.0f * delta_time;
+          node->pos.y = 240;
+          if (node->velocity.y > 0.0f)
+            node->velocity.y = 0.0f;
         }
         if (node->pos.x >= 400) {
-          float delta = node->pos.x - 400;
-          node->velocity.x -= delta * 100.0f * delta_time;
+          node->pos.x = 400;
+          if (node->velocity.x > 0.0f)
+            node->velocity.x = 0.0f;
         }
         if (node->pos.y < 0) {
-          float delta = node->pos.y;
-          node->velocity.y -= delta * 100.0f * delta_time;
+          node->pos.y = 0.0f;
+          if (node->velocity.y < 0.0f)
+            node->velocity.y = 0.0f;
         }
         if (node->pos.x < 0) {
-          float delta = node->pos.x;
-          node->velocity.x -= delta * 100.0f * delta_time;
+          node->pos.x = 0.0f;
+          if (node->velocity.x < 0.0f)
+            node->velocity.x = 0.0f;
         }
 
         // check collisions
