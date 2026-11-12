@@ -342,6 +342,9 @@ static int update(void *userdata) {
             }
 
             float length = lengthVec2(dirToCenter);
+            if (length == 0.0f) {
+              continue;
+            }
             dirToCenter = divScalar(dirToCenter, length);
 
             closest->velocity = add(
