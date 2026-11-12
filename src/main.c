@@ -96,17 +96,23 @@ Vec2 divScalar(Vec2 a, float b) {
   a.y /= b;
   return a;
 }
-Vec2 NULL_VEC = {0.0, 0.0};
 
 bool vecEquals(Vec2 a, Vec2 b) { return a.x == b.x && a.y == b.y; }
-bool vecIsNull(Vec2 a) { return a.x == NULL_VEC.x && a.y == NULL_VEC.y; }
 
-Vec2 pointInside(Softbody *body, Vec2 poing) {
+typedef struct {
+  bool collision;
+  Vec2 pos;
+  SoftbodyNode *lineStart;
+  SoftbodyNode *lineEnd;
+} CollisionResult;
+
+CollisionResult pointInside(Softbody *body, Vec2 poing) {
   // body's nodes must be defined in clockwise order!
 
   float closestSide = 9999.0;
-
-  Vec2 closestPoint = NULL_VEC;
+  Vec2 closestPoint = {0.0, 0.0};
+  SoftbodyNode *closestNodeStart = NULL;
+  SoftbodyNode *closestNodeEnd = NULL;
 
   for (int i = 0; i < body->nodeAmt; i++) {
     int next = i + 1;
@@ -148,7 +154,8 @@ Vec2 pointInside(Softbody *body, Vec2 poing) {
     }
 
     if (!onInside) {
-      return NULL_VEC;
+      CollisionResult null = {0};
+      return null;
     }
 
     Vec2 collisionPoint = {point.x, lineVal};
@@ -162,9 +169,13 @@ Vec2 pointInside(Softbody *body, Vec2 poing) {
     if (dist < closestSide) {
       closestSide = dist;
       closestPoint = collisionPoint;
+      closestNodeStart = node;
+      closestNodeEnd = nextNode;
     }
   }
-  return closestPoint;
+  CollisionResult result = {true, closestPoint, closestNodeStart,
+                            closestNodeEnd};
+  return result;
 }
 
 Vec2 getBodyCenter(Softbody *body) {
@@ -328,12 +339,12 @@ static int update(void *userdata) {
 
   pd->graphics->drawRect(testPoint.x - 2.0f, testPoint.y - 2.0f, 4.0f, 4.0f,
                          kColorWhite);
-  Vec2 inside = pointInside(&softbodies[0], testPoint);
-  if (!vecIsNull(inside)) {
-    pd->system->logToConsole("Colliding: %f,%f", (double)inside.x,
-                             (double)inside.y);
+  CollisionResult result = pointInside(&softbodies[0], testPoint);
+  if (result.collision) {
+    pd->system->logToConsole("Colliding: %f,%f", (double)result.pos.x,
+                             (double)result.pos.y);
 
-    pd->graphics->drawRect(inside.x - 4.0f, inside.y - 4.0f, 8.0f, 8.0f,
+    pd->graphics->drawRect(result.pos.x - 4.0f, result.pos.y - 4.0f, 8.0f, 8.0f,
                            kColorWhite);
   }
 
@@ -376,32 +387,23 @@ static int update(void *userdata) {
             continue;
 
           Softbody *collider = &softbodies[os];
-          Vec2 collidePoint = pointInside(collider, node->pos);
-          if (!vecIsNull(collidePoint)) {
+          CollisionResult result = pointInside(collider, node->pos);
+          if (result.collision) {
             Vec2 dirToCenter = sub(body->center, collider->center);
-            // find closest node in collider
-            SoftbodyNode *closest = NULL;
-            float closestDistance = 999.0;
-            for (int osn = 0; osn < collider->nodeAmt; osn++) {
-              SoftbodyNode *n = &collider->nodes[osn];
-              float d = distance(node->pos, n->pos);
-              if (d < closestDistance) {
-                closestDistance = d;
-                closest = n;
-              }
-            }
 
             float length = lengthVec2(dirToCenter);
             if (length == 0.0f) {
               continue;
             }
             dirToCenter = divScalar(dirToCenter, length);
+            float totalVelocity = lengthVec2(result.lineStart->velocity) +
+                                  lengthVec2(node->velocity);
 
-            closest->velocity = add(
-                node->velocity, mulScalar(dirToCenter, -280.0f * delta_time));
+            result.lineStart->velocity = add(
+                node->velocity, mulScalar(dirToCenter, -totalVelocity / 2.0f));
 
             node->velocity = add(node->velocity,
-                                 mulScalar(dirToCenter, 280.0f * delta_time));
+                                 mulScalar(dirToCenter, totalVelocity / 2.0f));
           }
         }
 
